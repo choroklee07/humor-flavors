@@ -54,6 +54,10 @@ export async function deleteHumorFlavor(formData: FormData) {
 }
 
 export async function createHumorFlavorStep(formData: FormData) {
+  const sessionClient = await createClient();
+  const { data: { user } } = await sessionClient.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const supabase = createAdminClient();
   const humorFlavorId = parseInt(formData.get("humorFlavorId") as string);
   const description = formData.get("description") as string;
@@ -75,7 +79,7 @@ export async function createHumorFlavorStep(formData: FormData) {
 
   const nextOrder = existing && existing.length > 0 ? existing[0].order_by + 1 : 1;
 
-  await (supabase as any).from("humor_flavor_steps").insert({
+  const { error } = await (supabase as any).from("humor_flavor_steps").insert({
     humor_flavor_id: humorFlavorId,
     order_by: nextOrder,
     description: description.trim() || null,
@@ -86,13 +90,21 @@ export async function createHumorFlavorStep(formData: FormData) {
     humor_flavor_step_type_id: stepTypeId ? parseInt(stepTypeId) : null,
     llm_input_type_id: parseInt(inputTypeId),
     llm_output_type_id: parseInt(outputTypeId),
+    created_by_user_id: user.id,
+    modified_by_user_id: user.id,
   });
+
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/humor-flavors/${humorFlavorId}`);
   redirect(`/humor-flavors/${humorFlavorId}`);
 }
 
 export async function updateHumorFlavorStep(formData: FormData) {
+  const sessionClient = await createClient();
+  const { data: { user } } = await sessionClient.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
   const supabase = createAdminClient();
   const stepId = parseInt(formData.get("stepId") as string);
   const humorFlavorId = parseInt(formData.get("humorFlavorId") as string);
@@ -105,7 +117,7 @@ export async function updateHumorFlavorStep(formData: FormData) {
   const inputTypeId = formData.get("inputTypeId") as string;
   const outputTypeId = formData.get("outputTypeId") as string;
 
-  await (supabase as any)
+  const { error } = await (supabase as any)
     .from("humor_flavor_steps")
     .update({
       description: description.trim() || null,
@@ -116,8 +128,11 @@ export async function updateHumorFlavorStep(formData: FormData) {
       humor_flavor_step_type_id: stepTypeId ? parseInt(stepTypeId) : null,
       llm_input_type_id: parseInt(inputTypeId),
       llm_output_type_id: parseInt(outputTypeId),
+      modified_by_user_id: user.id,
     })
     .eq("id", stepId);
+
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/humor-flavors/${humorFlavorId}`);
   redirect(`/humor-flavors/${humorFlavorId}`);

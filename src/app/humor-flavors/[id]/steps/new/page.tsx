@@ -44,7 +44,7 @@ export default async function NewStepPage({ params }: { params: Promise<{ id: st
             inputTypes={inputTypes ?? []}
             outputTypes={outputTypes ?? []}
             cancelHref={`/humor-flavors/${id}`}
-            submitLabel="+ ADD STEP"
+            submitLabel="SAVE"
           />
         </div>
       </div>

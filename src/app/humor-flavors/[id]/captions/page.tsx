@@ -10,7 +10,7 @@ export default async function FlavorCaptionsPage({ params }: { params: Promise<{
 
   const supabase = createAdminClient();
 
-  const [{ data: flavor }, { data: captions }] = await Promise.all([
+  const [{ data: flavor }, { data: captions, error: captionsError }] = await Promise.all([
     (supabase as any)
       .from("humor_flavors")
       .select("id, slug")
@@ -18,13 +18,14 @@ export default async function FlavorCaptionsPage({ params }: { params: Promise<{
       .single(),
     (supabase as any)
       .from("captions")
-      .select("id, content, is_public, is_featured, created_datetime_utc, profiles(email), images(url)")
+      .select("id, content, is_public, is_featured, created_datetime_utc, profiles!captions_profile_id_fkey(first_name, last_name, email), images!captions_image_id_fkey(url)")
       .eq("humor_flavor_id", parseInt(id))
       .order("created_datetime_utc", { ascending: false })
       .limit(100),
   ]);
 
   if (!flavor) notFound();
+  if (captionsError) console.error("captions query error:", captionsError.message);
 
   return (
     <AdminShell user={{ email: user?.email }}>
@@ -50,7 +51,7 @@ export default async function FlavorCaptionsPage({ params }: { params: Promise<{
             <table className="w-full text-xs font-mono">
               <thead>
                 <tr className="border-b border-[rgba(0,212,255,0.15)]">
-                  {["ID", "CAPTION", "PUBLIC", "FEATURED", "USER", "CREATED"].map((h) => (
+                  {["ID", "IMAGE", "CAPTION", "PUBLIC", "USER", "CREATED"].map((h) => (
                     <th key={h} className="cyber-label px-4 py-3 text-left font-normal">{h}</th>
                   ))}
                 </tr>
@@ -59,6 +60,13 @@ export default async function FlavorCaptionsPage({ params }: { params: Promise<{
                 {captions?.map((c: any) => (
                   <tr key={c.id} className="border-b border-[rgba(0,212,255,0.06)] hover:bg-[rgba(0,212,255,0.03)] transition-colors">
                     <td className="px-4 py-3 cyber-label">{c.id}</td>
+                    <td className="px-4 py-3">
+                      {c.images?.url ? (
+                        <img src={c.images.url} alt="" className="w-16 h-16 object-cover rounded border border-[rgba(0,212,255,0.2)]" />
+                      ) : (
+                        <span className="opacity-20 cyber-label">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 max-w-[400px]">
                       <span className="text-[rgba(200,240,255,0.8)] block" title={c.content}>
                         {c.content}
@@ -69,13 +77,10 @@ export default async function FlavorCaptionsPage({ params }: { params: Promise<{
                         {c.is_public ? "✓" : "✕"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={c.is_featured ? "cyber-text-green" : "opacity-30"}>
-                        {c.is_featured ? "★" : "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-[rgba(200,240,255,0.4)] text-[0.65rem]">
-                      {c.profiles?.email ?? "—"}
+<td className="px-4 py-3 text-[rgba(200,240,255,0.4)] text-[0.65rem]">
+                      {c.profiles
+                        ? [c.profiles.first_name, c.profiles.last_name].filter(Boolean).join(" ") || c.profiles.email || "—"
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-[rgba(200,240,255,0.4)]">
                       {new Date(c.created_datetime_utc).toLocaleDateString()}
